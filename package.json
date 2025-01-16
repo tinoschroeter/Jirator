@@ -1,0 +1,17 @@
+{
+  "name": "jirator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "jirator.js",
+  "bin": "jirator.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "open": "^8.4.0"
+  }
+}
