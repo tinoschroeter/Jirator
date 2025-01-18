@@ -2,7 +2,6 @@
 
 //TODO:
 //- add resolve issue witch message
-//- add assign to me
 
 const fs = require("fs");
 const blessed = require("blessed");
@@ -10,6 +9,7 @@ const open = require("open");
 const FETCH_TIMEOUT = 15_000; // 15 Seconds Timeout
 
 const data = {
+  assignToMeOpen: false,
   commentsOpen: false,
   currentIssue: "",
   filterOpen: false,
@@ -51,6 +51,53 @@ class JiraAPI {
     }
 
     return await response.json();
+  }
+
+  async getMyAccountId() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    const response = await fetch(`${this.baseUrl}/myself`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  async assignToMe(issue) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    const { name } = await this.getMyAccountId();
+
+    const response = await fetch(`${this.baseUrl}/issue/${issue}/assignee`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: name }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    logger(JSON.stringify(response));
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.ok;
   }
 
   async getComments(issue) {
@@ -299,6 +346,26 @@ const writeComments = blessed.prompt({
   hidden: true,
 });
 
+const assignToMe = blessed.prompt({
+  top: "center",
+  left: "center",
+  width: "50%",
+  height: "30%",
+  border: {
+    type: "line",
+  },
+  style: {
+    border: { fg: "white" },
+    fg: "white",
+    label: {
+      fg: "lightgrey",
+    },
+  },
+  label: " Assign to me ",
+  keys: true,
+  hidden: true,
+});
+
 const helpBox = blessed.box({
   parent: screen,
   top: "center",
@@ -308,16 +375,17 @@ const helpBox = blessed.box({
   label: " Help ",
   content: ` q|Esc          Close Jirator 
  /              Search
- w              Write a comment
  j              Move down in the list
  k              Move up in the list
- stg-j          Move down Description
- stg-k          Move up Description
+ stg-j          Move down description or comments
+ stg-k          Move up description or comments
  gg             Jump to the first item in the list
  G              Jump to the last item in the list
+ a              Assign current issue to me 
  c              Open comments for the current issue
  f              Open JQL Filter list 
  o              Open the current issue in the browser
+ w              Write a comment
  ?              Help
 `,
   border: { type: "line" },
@@ -404,11 +472,13 @@ const loading = blessed.box({
   left: "center",
   width: "shrink",
   height: "shrink",
-  content: " Loading... ",
-  border: { type: "none" },
+  content: ". . . L o a d i n g . . . ",
+  border: { type: "line" },
   style: {
-    border: { fg: "blue" },
-    fg: "white",
+    border: { fg: "yellow" },
+    bold: true,
+    fg: "black",
+    bg: "yellow",
     label: {
       fg: "lightgrey",
     },
@@ -421,6 +491,7 @@ screen.append(description);
 screen.append(feedList);
 screen.append(search);
 screen.append(writeComments);
+screen.append(assignToMe);
 
 feedList.setItems(["Loading..."]);
 
@@ -566,6 +637,20 @@ screen.key("w", function () {
   });
 });
 
+screen.key("a", function () {
+  assignToMe.setLabel(` Assign to me [ESC for exit] `);
+  assignToMe.input(
+    `\n  Type yes and hit enter to assign ${data.currentIssue} to you\n`,
+    (_err, value) => {
+      if (!value) return;
+      jira.assignToMe(data.currentIssue).then((result) => {
+        infoHandler(` ${data.currentIssue} will be assigned to you`);
+        loadAndDisplayIssues();
+      });
+    },
+  );
+});
+
 screen.key(["c"], (_ch, _key) => {
   screen.append(comments);
   data.commentsOpen = true;
@@ -600,6 +685,12 @@ screen.key(["escape", "q"], (_ch, _key) => {
     screen.render();
     return;
   }
+  if (data.assignToMeOpen) {
+    data.assignToMeOpen = false;
+    assignToMe.hide();
+    screen.render();
+    return;
+  }
   if (data.writeCommentOpen) {
     data.writeCommentOpen = false;
     writeComments.hide();
@@ -629,21 +720,48 @@ const severity = (type) => {
   return type;
 };
 
+const spaces = (num, max) => {
+  let space = "";
+  for (let i = 0; i < max - num; i++) {
+    space += " ";
+  }
+
+  return space;
+};
+
+const line = (num) => {
+  let line = "";
+  for (let i = 0; i < num - 4; i++) {
+    line += "-";
+  }
+
+  return line;
+};
+
 setInterval(() => {
   const selectedIndexMain = feedList.selected;
   if (selectedIndexMain !== undefined && data.issues[selectedIndexMain]) {
     data.currentIssue = data.issues[selectedIndexMain].key;
+    const max = Math.max(
+      data.issues[selectedIndexMain].key.length,
+      data.issues[selectedIndexMain].assignee.length,
+      data.issues[selectedIndexMain].reporter.length,
+      data.issues[selectedIndexMain].status.length,
+      data.issues[selectedIndexMain].severity.length,
+    );
+
     description.setContent(
-      `{bold}Issue:{/bold}{blue-fg}      ${data.issues[selectedIndexMain].key}{/blue-fg}\n` +
-        `{bold}Assignee:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].assignee}{/blue-fg}\n` +
-        `{bold}Reporter:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].reporter}{/blue-fg}\n` +
-        `{bold}Status:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].status}{/blue-fg}\n` +
-        `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain].severity)}{/blue-fg}\n` +
-        `{bold}Watchers:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].watchCount}{/blue-fg}\n` +
-        `{bold}Labels:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].labels.toString()}{/blue-fg}\n` +
-        `{bold}DueDate:{/bold}{green-fg}    ${data.issues[selectedIndexMain].duedate}{/green-fg}\n` +
-        `{bold}Created:{/bold}{green-fg}    ${data.issues[selectedIndexMain].created}{/green-fg}\n` +
-        `{bold}LastUpdate:{/bold}{green-fg} ${data.issues[selectedIndexMain].lastUpdate}{/green-fg}\n\n` +
+      `{bold}Issue:{/bold}{blue-fg}      ${data.issues[selectedIndexMain].key}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].key.length, max)}{bold}Watchers:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].watchCount}{/blue-fg}\n` +
+        `{bold}Assignee:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].assignee}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].assignee.length, max)}{bold}Labels:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].labels.toString()}{/blue-fg}\n` +
+        `{bold}Reporter:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].reporter}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].reporter.length, max)}{bold}DueDate:{/bold}{green-fg}    ${data.issues[selectedIndexMain].duedate}{/green-fg}\n` +
+        `{bold}Status:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].status}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].status.length, max)}{bold}Created:{/bold}{green-fg}    ${data.issues[selectedIndexMain].created}{/green-fg}\n` +
+        `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain].severity)}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].severity.length, max)}{bold}LastUpdate:{/bold}{green-fg} ${data.issues[selectedIndexMain].lastUpdate}{/green-fg}\n\n` +
+        `${line(description.width)}\n` +
         `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
     );
     description.setLabel(" Description (" + data.issues.length + ") Issues ");

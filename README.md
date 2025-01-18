@@ -1,8 +1,12 @@
 # Jirator
 
-Jira TUI application
+Jira TUI application, will not work with Jira Cloud.
 
 ## installation
+
+### Get Access Token
+
+Go to your profile <https://jira.example.com/secure/ViewProfile.jspa> and generate a Personal Access Tokens.
 
 ### ENV
 
