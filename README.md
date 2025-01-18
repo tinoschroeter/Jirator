@@ -22,6 +22,13 @@ npm install -g .
 jirator
 ```
 
+## Update
+
+```bash
+cd Jirator
+git pull
+```
+
 ## Vim
 
 ```bash

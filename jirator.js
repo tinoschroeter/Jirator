@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+//TODO:
+//- add resolve issue witch message
+//- add assign to me
+
 const fs = require("fs");
 const blessed = require("blessed");
 const open = require("open");
@@ -125,7 +129,7 @@ const infoHandler = (message) => {
   setTimeout(() => {
     infoBox.hide();
     screen.render();
-  }, 2_000);
+  }, 3_000);
 };
 
 const loadingHandler = (status) => {
@@ -377,7 +381,7 @@ const errorBox = blessed.box({
 
 const infoBox = blessed.box({
   parent: screen,
-  top: 3,
+  top: 2,
   right: 2,
   width: "shrink",
   height: "shrink",
@@ -401,9 +405,9 @@ const loading = blessed.box({
   width: "shrink",
   height: "shrink",
   content: " Loading... ",
-  border: { type: "line" },
+  border: { type: "none" },
   style: {
-    border: { fg: "cyan" },
+    border: { fg: "blue" },
     fg: "white",
     label: {
       fg: "lightgrey",
@@ -431,7 +435,9 @@ const loadAndDisplayIssues = async () => {
         headline: item.fields.summary,
         labels: item.fields.labels,
         assignee: item.fields.assignee.name,
+        reporter: item.fields.reporter.name,
         lastUpdate: item.fields.updated,
+        duedate: item.fields.duedate,
         created: item.fields.created,
         watchCount: item.fields.watches.watchCount,
         status: item.fields.status.name,
@@ -628,15 +634,17 @@ setInterval(() => {
   if (selectedIndexMain !== undefined && data.issues[selectedIndexMain]) {
     data.currentIssue = data.issues[selectedIndexMain].key;
     description.setContent(
-      `{bold}Issue:{/bold} {blue-fg}${data.issues[selectedIndexMain].key}{/blue-fg}\n` +
-        `{bold}Assignee:{/bold} ${data.issues[selectedIndexMain].assignee}\n` +
-        `{bold}Status:{/bold} ${data.issues[selectedIndexMain].status}\n` +
-        `{bold}Priority:{/bold} ${severity(data.issues[selectedIndexMain].severity)}\n` +
-        `{bold}Watchers:{/bold} ${data.issues[selectedIndexMain].watchCount}\n` +
-        `{bold}Labels:{/bold} ${data.issues[selectedIndexMain].labels.toString()}\n` +
-        `{bold}Created:{/bold} {green-fg}${data.issues[selectedIndexMain].created}{/green-fg}\n` +
-        `{bold}lastUpdate:{/bold} {green-fg}${data.issues[selectedIndexMain].lastUpdate}{/green-fg}\n\n` +
-        `{bold}Description:{/bold}\n{blue-fg}${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
+      `{bold}Issue:{/bold}{blue-fg}      ${data.issues[selectedIndexMain].key}{/blue-fg}\n` +
+        `{bold}Assignee:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].assignee}{/blue-fg}\n` +
+        `{bold}Reporter:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].reporter}{/blue-fg}\n` +
+        `{bold}Status:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].status}{/blue-fg}\n` +
+        `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain].severity)}{/blue-fg}\n` +
+        `{bold}Watchers:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].watchCount}{/blue-fg}\n` +
+        `{bold}Labels:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].labels.toString()}{/blue-fg}\n` +
+        `{bold}DueDate:{/bold}{green-fg}    ${data.issues[selectedIndexMain].duedate}{/green-fg}\n` +
+        `{bold}Created:{/bold}{green-fg}    ${data.issues[selectedIndexMain].created}{/green-fg}\n` +
+        `{bold}LastUpdate:{/bold}{green-fg} ${data.issues[selectedIndexMain].lastUpdate}{/green-fg}\n\n` +
+        `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
     );
     description.setLabel(" Description (" + data.issues.length + ") Issues ");
 
