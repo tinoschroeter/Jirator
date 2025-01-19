@@ -419,6 +419,7 @@ const assignToMe = blessed.prompt({
     },
   },
   label: " Assign to me ",
+  tags: true,
   keys: true,
   hidden: true,
 });
@@ -439,6 +440,7 @@ const watch = blessed.prompt({
     },
   },
   label: " Watch ",
+  tags: true,
   keys: true,
   hidden: true,
 });
@@ -450,30 +452,24 @@ const helpBox = blessed.box({
   height: "shrink",
   width: "50%",
   label: " Help ",
-  content: ` q|Esc          Close Jirator 
- /              Search
- j              Move down in the list
- k              Move up in the list
- stg-j          Move down description or comments
- stg-k          Move up description or comments
- gg             Jump to the first item in the list
- G              Jump to the last item in the list
- a              Assign current issue to me 
- c              Open comments for the current issue
- f              Open JQL Filter list 
- o              Open the current issue in the browser
- w              Add me as watcher
- e              Write a comment
- ?              Help
-`,
   border: { type: "line" },
-  style: {
-    border: { fg: "white" },
-    fg: "white",
-    label: {
-      fg: "lightgrey",
-    },
-  },
+  content: `  {bold}q|Esc{/bold}            {green-fg}Close Jirator{/green-fg}
+  {bold}/{/bold}                {green-fg}Search{/green-fg}
+  {bold}j{/bold}                {green-fg}Move down in the list{/green-fg}
+  {bold}k{/bold}                {green-fg}Move up in the list{/green-fg}
+  {bold}stg-j{/bold}            {green-fg}Move down description or comments{/green-fg}
+  {bold}stg-k{/bold}            {green-fg}Move up description or comments{/green-fg}
+  {bold}gg{/bold}               {green-fg}Jump to the first item in the list{/green-fg}
+  {bold}G{/bold}                {green-fg}Jump to the last item in the list{/green-fg}
+  {bold}a{/bold}                {green-fg}Assign current issue to me{/green-fg}
+  {bold}c{/bold}                {green-fg}Open comments for the current issue{/green-fg}
+  {bold}f{/bold}                {green-fg}Open JQL Filter list{/green-fg}
+  {bold}o{/bold}                {green-fg}Open the current issue in the browser{/green-fg}
+  {bold}w{/bold}                {green-fg}Add me as watcher{/green-fg}
+  {bold}e{/bold}                {green-fg}Write a comment{/green-fg}
+  {bold}?{/bold}                {green-fg}Help{/green-fg}
+`,
+  tags: true,
   hidden: true,
 });
 
@@ -513,7 +509,6 @@ const errorBox = blessed.box({
   width: "70%",
   height: "37%",
   label: " Error ",
-  content: "",
   border: { type: "line" },
   style: {
     border: { fg: "red" },
@@ -532,7 +527,6 @@ const infoBox = blessed.box({
   width: "shrink",
   height: "shrink",
   label: " Info ",
-  content: "",
   border: { type: "line" },
   style: {
     border: { fg: "blue" },
@@ -716,19 +710,22 @@ screen.key("e", () => {
   }
 
   writeComments.setLabel(` ${data.currentIssue} [ESC for exit]`);
-  writeComments.input("\n  Type a comment and hit enter", (_err, value) => {
-    if (!value) return;
-    infoHandler(value);
-    jira.writeComments(data.currentIssue, value).then((result) => {
-      infoHandler(`Comment ${result.body} was created`);
-    });
-  });
+  writeComments.input(
+    "\n  {bold}{blue-fg}Type a comment and hit enter{/bold}{/blue-fg}",
+    (_err, value) => {
+      if (!value) return;
+      infoHandler(value);
+      jira.writeComments(data.currentIssue, value).then((result) => {
+        infoHandler(`Comment ${result.body} was created`);
+      });
+    },
+  );
 });
 
 screen.key("a", () => {
   assignToMe.setLabel(` Assign to me [ESC for exit] `);
   assignToMe.input(
-    `\n  Type yes and hit enter to assign ${data.currentIssue} to you\n`,
+    `\n  {bold}{blue-fg}Type yes and hit enter to assign {red-fg}${data.currentIssue}{/red-fg} to you{/blue-fg}{/bold}\n`,
     (_err, value) => {
       if (!value) return;
       jira.assignToMe(data.currentIssue).then((result) => {
@@ -744,11 +741,11 @@ screen.key("w", () => {
   jira.getWatcher(data.currentIssue).then((result) => {
     const watching = result.isWatching ? "UNWATCH" : "WATCH";
     const watchers = result.watchers
-      .map((item) => `  * ${item.name}\n`)
+      .map((item) => `  {bold}* {green-fg}${item.name}{/green-fg}{/bold}\n`)
       .join("");
 
     watch.input(
-      `\n  Type yes and hit enter to ${watching} ${data.currentIssue}\n\n\n\n\n\n${watchers}`,
+      `\n  {bold}{blue-fg}Type yes and hit enter to ${watching} {red-fg}${data.currentIssue}{/red-fg}{bold}{blue-fg}\n\n\n\n\n\n${watchers}`,
       (_err, value) => {
         if (!value) return;
         if (result.isWatching) {
@@ -895,7 +892,7 @@ setInterval(() => {
           );
         });
         commentList.unshift(
-          `{bold}{green-fg}> ${data.issues[selectedIndexMain].summary}{/green-fg}{/bold}\n\n`,
+          `{bold}{green-fg}> ${data.issues[selectedIndexMain]?.summary}{/green-fg}{/bold}\n\n`,
         );
         if (commentList.length === 1)
           commentList.push("{bold}No comments...{/bold}");
