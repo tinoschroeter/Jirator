@@ -92,12 +92,57 @@ class JiraAPI {
 
     clearTimeout(timeoutId);
 
-    logger(JSON.stringify(response));
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     return response.ok;
+  }
+
+  async watcher(issue, method = "GET", username = null) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
+    const options = {
+      method,
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    };
+
+    if (username && method !== "DELETE") {
+      options.body = JSON.stringify(username);
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/issue/${issue}/watchers?username=${username}`,
+      options,
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return method === "GET" ? await response.json() : true;
+  }
+
+  async watchIssue(issue) {
+    const { name } = await this.getMyAccountId();
+    return this.watcher(issue, "POST", name);
+  }
+
+  async unwatchIssue(issue) {
+    const { name } = await this.getMyAccountId();
+    return this.watcher(issue, "DELETE", name);
+  }
+
+  async getWatcher(issue) {
+    return this.watcher(issue, "GET");
   }
 
   async getComments(issue) {
@@ -153,6 +198,18 @@ const logger = (data) => {
     }
   });
 };
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "-";
+
+  const date = new Date(dateStr);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}.${month}.${year}`;
+};
+
 const jira = new JiraAPI(process.env.JIRA_HOST, process.env.JIRA_API_TOKEN);
 
 const errorHandling = (message) => {
@@ -366,6 +423,26 @@ const assignToMe = blessed.prompt({
   hidden: true,
 });
 
+const watch = blessed.prompt({
+  top: "center",
+  left: "center",
+  width: "50%",
+  height: "50%",
+  border: {
+    type: "line",
+  },
+  style: {
+    border: { fg: "white" },
+    fg: "blue",
+    label: {
+      fg: "lightgrey",
+    },
+  },
+  label: " Watch ",
+  keys: true,
+  hidden: true,
+});
+
 const helpBox = blessed.box({
   parent: screen,
   top: "center",
@@ -385,7 +462,8 @@ const helpBox = blessed.box({
  c              Open comments for the current issue
  f              Open JQL Filter list 
  o              Open the current issue in the browser
- w              Write a comment
+ w              Add me as watcher
+ e              Write a comment
  ?              Help
 `,
   border: { type: "line" },
@@ -472,7 +550,7 @@ const loading = blessed.box({
   left: "center",
   width: "shrink",
   height: "shrink",
-  content: ". . . L o a d i n g . . . ",
+  content: " L o a d i n g ",
   border: { type: "line" },
   style: {
     border: { fg: "yellow" },
@@ -492,6 +570,7 @@ screen.append(feedList);
 screen.append(search);
 screen.append(writeComments);
 screen.append(assignToMe);
+screen.append(watch);
 
 feedList.setItems(["Loading..."]);
 
@@ -552,21 +631,27 @@ screen.key(["g"], (_ch, _key) => {
     firstGPressed = true;
     setTimeout(() => {
       if (firstGPressed) {
-        feedList.select(0);
         firstGPressed = false;
-        screen.render();
       }
     }, 300);
   } else {
-    feedList.select(0);
+    if (data.filterOpen) {
+      filter.select(0);
+    } else {
+      feedList.select(0);
+    }
     firstGPressed = false;
     screen.render();
   }
 });
 
-screen.program.on("keypress", function (_ch, key) {
+screen.program.on("keypress", (_ch, key) => {
   if (key.name === "g" && key.shift) {
-    feedList.select(feedList.items.length - 1);
+    if (data.filterOpen) {
+      filter.select(feedList.items.length - 1);
+    } else {
+      feedList.select(feedList.items.length - 1);
+    }
     screen.render();
   }
 });
@@ -611,7 +696,7 @@ screen.key(["o"], (_ch, _key) => {
   open(`https://${process.env.JIRA_HOST}/browse/${data.currentIssue}`);
 });
 
-screen.key("?", function () {
+screen.key("?", () => {
   if (helpBox.hidden) {
     data.helpOpen = true;
     screen.append(helpBox);
@@ -620,7 +705,7 @@ screen.key("?", function () {
   }
 });
 
-screen.key("w", function () {
+screen.key("e", () => {
   if (data.commentsOpen) {
     data.commentsOpen = false;
     comments.hide();
@@ -637,7 +722,7 @@ screen.key("w", function () {
   });
 });
 
-screen.key("a", function () {
+screen.key("a", () => {
   assignToMe.setLabel(` Assign to me [ESC for exit] `);
   assignToMe.input(
     `\n  Type yes and hit enter to assign ${data.currentIssue} to you\n`,
@@ -649,6 +734,36 @@ screen.key("a", function () {
       });
     },
   );
+});
+
+screen.key("w", () => {
+  watch.setLabel(` Watch Issue [ESC for exit] `);
+  jira.getWatcher(data.currentIssue).then((result) => {
+    const watching = result.isWatching ? "UNWATCH" : "WATCH";
+    const watchers = result.watchers
+      .map((item) => `  * ${item.name}\n`)
+      .join("");
+
+    watch.input(
+      `\n  Type yes and hit enter to ${watching} ${data.currentIssue}\n\n\n\n\n\n${watchers}`,
+      (_err, value) => {
+        if (!value) return;
+        if (result.isWatching) {
+          jira.unwatchIssue(data.currentIssue).then((result) => {
+            infoHandler(` You unwatching ${data.currentIssue} now `);
+          });
+        } else {
+          jira.watchIssue(data.currentIssue).then((result) => {
+            infoHandler(` You watching ${data.currentIssue} now `);
+          });
+        }
+        setTimeout(() => {
+          data.issues.length = 0;
+          loadAndDisplayIssues();
+        }, 1_077);
+      },
+    );
+  });
 });
 
 screen.key(["c"], (_ch, _key) => {
@@ -731,7 +846,7 @@ const spaces = (num, max) => {
 
 const line = (num) => {
   let line = "";
-  for (let i = 0; i < num - 4; i++) {
+  for (let i = 0; i < num - 5; i++) {
     line += "-";
   }
 
@@ -756,11 +871,11 @@ setInterval(() => {
         `{bold}Assignee:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].assignee}{/blue-fg}` +
         `          ${spaces(data.issues[selectedIndexMain].assignee.length, max)}{bold}Labels:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].labels.toString()}{/blue-fg}\n` +
         `{bold}Reporter:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].reporter}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].reporter.length, max)}{bold}DueDate:{/bold}{green-fg}    ${data.issues[selectedIndexMain].duedate}{/green-fg}\n` +
+        `          ${spaces(data.issues[selectedIndexMain].reporter.length, max)}{bold}DueDate:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].duedate)}{/green-fg}\n` +
         `{bold}Status:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].status}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].status.length, max)}{bold}Created:{/bold}{green-fg}    ${data.issues[selectedIndexMain].created}{/green-fg}\n` +
+        `          ${spaces(data.issues[selectedIndexMain].status.length, max)}{bold}Created:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].created)}{/green-fg}\n` +
         `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain].severity)}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].severity.length, max)}{bold}LastUpdate:{/bold}{green-fg} ${data.issues[selectedIndexMain].lastUpdate}{/green-fg}\n\n` +
+        `          ${spaces(data.issues[selectedIndexMain].severity.length, max)}{bold}LastUpdate:{/bold}{green-fg} ${formatDate(data.issues[selectedIndexMain].lastUpdate)}{/green-fg}\n\n` +
         `${line(description.width)}\n` +
         `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
     );
