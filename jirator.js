@@ -247,7 +247,7 @@ const infoHandler = (message) => {
   setTimeout(() => {
     infoBox.hide();
     screen.render();
-  }, 3_000);
+  }, 4_000);
 };
 
 const loadingHandler = (status) => {
@@ -260,13 +260,64 @@ const loadingHandler = (status) => {
   screen.render();
 };
 
+// https://en.wikipedia.org/wiki/Levenshtein_distance
+const levenshteinDistance = (a, b) => {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1,
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+};
+
 const searchInList = (query) => {
   const items = feedList.items.map((item) => item.getContent());
-  const index = items.findIndex((item) =>
+  const search = items.filter((item) =>
     item.toLowerCase().includes(query.toLowerCase()),
   );
+  const levenshtein = items.filter((item) => {
+    return item.split(" ").some((item) => {
+      return (
+        levenshteinDistance(
+          item.toLowerCase().trim(),
+          query.toLowerCase().trim(),
+        ) <= Math.round(query.length * 0.3) // The longer the search term, the greater the allowable Levenshtein distance.
+      );
+    });
+  });
 
-  feedList.select(index !== -1 ? index : 0);
+  // remove duplicates
+  search.push(...levenshtein.filter((item) => !search.includes(item)));
+
+  if (!search.length) {
+    return infoHandler("Search yielded no results");
+  }
+  feedList.setItems(search);
+  infoHandler(
+    `I have found ${search.length} results,\n ${levenshtein.length} through error correction.\n Press {bold}r{/bold} to reload the list.`,
+  );
   screen.render();
 };
 
@@ -468,7 +519,7 @@ const helpBox = blessed.box({
   label: " Help ",
   border: { type: "line" },
   content: `  {bold}q|Esc{/bold}            {green-fg}Close Jirator{/green-fg}
-  {bold}/{/bold}                {green-fg}Search{/green-fg}
+  {bold}/{/bold}                {green-fg}Fuzzy Search (Levenshtein Distance){/green-fg}
   {bold}j{/bold}                {green-fg}Move down in the list{/green-fg}
   {bold}k{/bold}                {green-fg}Move up in the list{/green-fg}
   {bold}stg-j{/bold}            {green-fg}Move down description or comments{/green-fg}
@@ -477,10 +528,11 @@ const helpBox = blessed.box({
   {bold}G{/bold}                {green-fg}Jump to the last item in the list{/green-fg}
   {bold}a{/bold}                {green-fg}Assign current issue to me{/green-fg}
   {bold}c{/bold}                {green-fg}Open comments for the current issue{/green-fg}
+  {bold}e{/bold}                {green-fg}Write a comment{/green-fg}
   {bold}f{/bold}                {green-fg}Open JQL Filter list{/green-fg}
   {bold}o{/bold}                {green-fg}Open the current issue in the browser{/green-fg}
+  {bold}r{/bold}                {green-fg}Reload the current list.{/green-fg}
   {bold}w{/bold}                {green-fg}Add me as watcher{/green-fg}
-  {bold}e{/bold}                {green-fg}Write a comment{/green-fg}
   {bold}?{/bold}                {green-fg}Help{/green-fg}
 `,
   tags: true,
@@ -551,6 +603,7 @@ const infoBox = blessed.box({
     },
   },
   hidden: true,
+  tags: true,
 });
 
 const loading = blessed.box({
@@ -794,6 +847,10 @@ screen.key(["c"], (_ch, _key) => {
   screen.append(comments);
   data.commentsOpen = true;
   comments.show();
+});
+
+screen.key(["r"], (_ch, _key) => {
+  loadAndDisplayIssues();
 });
 
 screen.key(["f"], (_ch, _key) => {
