@@ -33,6 +33,29 @@ cd Jirator
 git pull
 ```
 
+## JQL filter
+
+```js
+[
+  [
+    "Issues CurrentUser",
+    "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
+  ],
+  [
+    "Filter Quckwin List",
+    "project = <PROJECT> AND assignee = <ASSIGNEE> AND status != Closed AND labels = quickwin",
+  ],
+  [
+    "Watched issues",
+    "watcher = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
+  ],
+  [
+    "Backlog List",
+    "project = <PROJECT> AND assignee = <ASSIGNEE> AND status != Closed ORDER BY priority",
+  ],
+];
+```
+
 ## Vim
 
 ```bash
