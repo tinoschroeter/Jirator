@@ -1,6 +1,18 @@
 # Jirator
 
-Jira TUI application, will not work with Jira Cloud.
+Jira TUI application, will maybe not work with Jira Cloud.
+
+![screenshot](./screenshot.png)
+
+## Feature
+
+- Basic vim motions
+- Fuzzy Search and error correction (Levenshtein Distance)
+- Assign issues to your account
+- Open and write comments
+- Show watchers and watch issues
+- Open your own list of JQL searches
+- Open the current issue in the browser
 
 ## installation
 
