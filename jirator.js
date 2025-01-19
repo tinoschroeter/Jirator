@@ -10,6 +10,7 @@ const FETCH_TIMEOUT = 15_000; // 15 Seconds Timeout
 
 const data = {
   assignToMeOpen: false,
+  errorMessagesCall: true,
   commentsOpen: false,
   currentIssue: "",
   filterOpen: false,
@@ -19,6 +20,7 @@ const data = {
   JIRA: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   helpOpen: false,
   issues: [],
+  comments: {},
   writeCommentOpen: false,
 };
 
@@ -213,15 +215,27 @@ const formatDate = (dateStr) => {
 const jira = new JiraAPI(process.env.JIRA_HOST, process.env.JIRA_API_TOKEN);
 
 const errorHandling = (message) => {
-  screen.append(errorBox);
-  errorBox.show();
-  errorBox.setContent(message);
-  screen.render();
+  const biggerText = (str) => {
+    let result = "";
+    for (let val of str) {
+      result += val + " ";
+    }
+    return result;
+  };
 
-  setTimeout(() => {
-    errorBox.hide();
+  if (data.errorMessagesCall) {
+    data.errorMessagesCall = false;
+    screen.append(errorBox);
+    errorBox.show();
+    errorBox.setContent(" " + biggerText(message) + " ");
     screen.render();
-  }, 4_000);
+
+    setTimeout(() => {
+      data.errorMessagesCall = true;
+      errorBox.hide();
+      screen.render();
+    }, 4_000);
+  }
 };
 
 const infoHandler = (message) => {
@@ -506,15 +520,16 @@ const errorBox = blessed.box({
   parent: screen,
   top: "center",
   left: "center",
-  width: "70%",
-  height: "37%",
+  width: "shrink",
+  height: "shrink",
   label: " Error ",
   border: { type: "line" },
   style: {
     border: { fg: "red" },
-    fg: "white",
+    fg: "black",
+    bg: "red",
     label: {
-      fg: "lightgrey",
+      fg: "red",
     },
   },
   hidden: true,
@@ -715,9 +730,12 @@ screen.key("e", () => {
     (_err, value) => {
       if (!value) return;
       infoHandler(value);
-      jira.writeComments(data.currentIssue, value).then((result) => {
-        infoHandler(`Comment ${result.body} was created`);
-      });
+      jira
+        .writeComments(data.currentIssue, value)
+        .then((result) => {
+          infoHandler(`Comment ${result.body} was created`);
+        })
+        .catch((err) => errorHandling(err.message));
     },
   );
 });
@@ -728,42 +746,48 @@ screen.key("a", () => {
     `\n  {bold}{blue-fg}Type yes and hit enter to assign {red-fg}${data.currentIssue}{/red-fg} to you{/blue-fg}{/bold}\n`,
     (_err, value) => {
       if (!value) return;
-      jira.assignToMe(data.currentIssue).then((result) => {
-        infoHandler(` ${data.currentIssue} will be assigned to you`);
-        loadAndDisplayIssues();
-      });
+      jira
+        .assignToMe(data.currentIssue)
+        .then((result) => {
+          infoHandler(` ${data.currentIssue} will be assigned to you`);
+          loadAndDisplayIssues();
+        })
+        .catch((err) => errorHandling(err.message));
     },
   );
 });
 
 screen.key("w", () => {
   watch.setLabel(` Watch Issue [ESC for exit] `);
-  jira.getWatcher(data.currentIssue).then((result) => {
-    const watching = result.isWatching ? "UNWATCH" : "WATCH";
-    const watchers = result.watchers
-      .map((item) => `  {bold}* {green-fg}${item.name}{/green-fg}{/bold}\n`)
-      .join("");
+  jira
+    .getWatcher(data.currentIssue)
+    .then((result) => {
+      const watching = result.isWatching ? "UNWATCH" : "WATCH";
+      const watchers = result.watchers
+        .map((item) => `  {bold}* {green-fg}${item.name}{/green-fg}{/bold}\n`)
+        .join("");
 
-    watch.input(
-      `\n  {bold}{blue-fg}Type yes and hit enter to ${watching} {red-fg}${data.currentIssue}{/red-fg}{bold}{blue-fg}\n\n\n\n\n\n${watchers}`,
-      (_err, value) => {
-        if (!value) return;
-        if (result.isWatching) {
-          jira.unwatchIssue(data.currentIssue).then((result) => {
-            infoHandler(` You unwatching ${data.currentIssue} now `);
-          });
-        } else {
-          jira.watchIssue(data.currentIssue).then((result) => {
-            infoHandler(` You watching ${data.currentIssue} now `);
-          });
-        }
-        setTimeout(() => {
-          data.issues.length = 0;
-          loadAndDisplayIssues();
-        }, 1_077);
-      },
-    );
-  });
+      watch.input(
+        `\n  {bold}{blue-fg}Type yes and hit enter to ${watching} {red-fg}${data.currentIssue}{/red-fg}{bold}{blue-fg}\n\n\n\n\n\n${watchers}`,
+        (_err, value) => {
+          if (!value) return;
+          if (result.isWatching) {
+            jira.unwatchIssue(data.currentIssue).then((result) => {
+              infoHandler(` You unwatching ${data.currentIssue} now `);
+            });
+          } else {
+            jira.watchIssue(data.currentIssue).then((result) => {
+              infoHandler(` You watching ${data.currentIssue} now `);
+            });
+          }
+          setTimeout(() => {
+            data.issues.length = 0;
+            loadAndDisplayIssues();
+          }, 1_077);
+        },
+      );
+    })
+    .catch((err) => errorHandling(err.message));
 });
 
 screen.key(["c"], (_ch, _key) => {
@@ -883,23 +907,31 @@ setInterval(() => {
     description.setLabel(" Description (" + data.issues.length + ") Issues ");
 
     if (data.currentIssue !== "") {
-      jira.getComments(data.currentIssue).then((value) => {
-        const commentList = value.comments.map((item) => {
-          return (
-            `{bold}From:{/bold} ${item.author.displayName}\n` +
-            `{blue-fg}${item.body}{/blue-fg}\n\n` +
-            `{bold}Last update:{/bold} ${item.updated}\n\n`
-          );
-        });
-        commentList.unshift(
-          `{bold}{green-fg}> ${data.issues[selectedIndexMain]?.summary}{/green-fg}{/bold}\n\n`,
-        );
-        if (commentList.length === 1)
-          commentList.push("{bold}No comments...{/bold}");
+      if (!data.comments[data.currentIssue]) {
+        jira
+          .getComments(data.currentIssue)
+          .then((value) => {
+            const commentList = value.comments.map((item) => {
+              return (
+                `{bold}From:{/bold} ${item.author.displayName}\n` +
+                `{blue-fg}${item.body}{/blue-fg}\n\n` +
+                `{bold}Last update:{/bold} ${item.updated}\n\n`
+              );
+            });
+            commentList.unshift(
+              `{bold}{green-fg}> ${data.issues[selectedIndexMain]?.summary}{/green-fg}{/bold}\n\n`,
+            );
+            if (commentList.length === 1)
+              commentList.push("{bold}No comments...{/bold}");
 
+            data.comments[data.currentIssue] = [...commentList];
+          })
+          .catch((err) => errorHandling(err.message));
+      }
+      if (data.comments[data.currentIssue]) {
         comments.setLabel(`Comments for ${data.currentIssue} [quit width q]`);
-        comments.setContent(commentList.join(""));
-      });
+        comments.setContent(data.comments[data.currentIssue].join(""));
+      }
     }
   }
   screen.render();
