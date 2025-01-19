@@ -594,6 +594,9 @@ const loadAndDisplayIssues = async () => {
         severity: item.fields.priority.name,
         summary: item.fields.summary,
         description: item.fields.description,
+        reasonForPriority: item.fields.customfield_12898
+          ? item.fields.customfield_12898
+          : "Reason was not given",
       });
       return `[${item.key}] ${item.fields.summary}`;
     });
@@ -876,6 +879,7 @@ setInterval(() => {
         `          ${spaces(data.issues[selectedIndexMain].status.length, max)}{bold}Created:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].created)}{/green-fg}\n` +
         `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain].severity)}{/blue-fg}` +
         `          ${spaces(data.issues[selectedIndexMain].severity.length, max)}{bold}LastUpdate:{/bold}{green-fg} ${formatDate(data.issues[selectedIndexMain].lastUpdate)}{/green-fg}\n\n` +
+        `{bold}Reason for Priority:{/bold}\n{yellow-fg}${data.issues[selectedIndexMain].reasonForPriority}{/yellow-fg}\n` +
         `${line(description.width)}\n` +
         `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
     );
