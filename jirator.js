@@ -21,6 +21,7 @@ const data = {
   helpOpen: false,
   issues: [],
   comments: {},
+  commentsCount: {},
   writeCommentOpen: false,
 };
 
@@ -790,7 +791,11 @@ screen.key("e", () => {
         .then((result) => {
           infoHandler(`Comment ${result.body} was created`);
         })
-        .catch((err) => errorHandling(err.message));
+        .catch((err) => errorHandling(err.message))
+        .finally(() => {
+          delete data.comments[data.currentIssue];
+          delete data.commentsCount[data.currentIssue];
+        });
     },
   );
 });
@@ -963,8 +968,14 @@ setInterval(() => {
         `${line(description.width)}\n` +
         `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
     );
-    description.setLabel(" Description (" + data.issues.length + ") Issues ");
-
+    const commentsCount = data.commentsCount[data.currentIssue] || 0;
+    description.setLabel(
+      " Description (" +
+        data.issues.length +
+        " Issues) (" +
+        commentsCount +
+        " Comments) ",
+    );
     if (data.currentIssue !== "") {
       if (!data.comments[data.currentIssue]) {
         jira
@@ -972,11 +983,12 @@ setInterval(() => {
           .then((value) => {
             const commentList = value.comments.map((item) => {
               return (
-                `{bold}From:{/bold} ${item.author.displayName}\n` +
-                `{blue-fg}${item.body}{/blue-fg}\n\n` +
-                `{bold}Last update:{/bold} ${item.updated}\n\n`
+                `{bold}From:{/bold} {blue-fg}${item.author.displayName}{/blue-fg}\n` +
+                `{green-fg}${item.body}{/green-fg}\n` +
+                `{bold}Last update:{/bold} ${formatDate(item.updated)}\n\n`
               );
             });
+            data.commentsCount[data.currentIssue] = commentList.length;
             commentList.unshift(
               `{bold}{green-fg}> ${data.issues[selectedIndexMain]?.summary}{/green-fg}{/bold}\n\n`,
             );
@@ -988,10 +1000,12 @@ setInterval(() => {
           .catch((err) => errorHandling(err.message));
       }
       if (data.comments[data.currentIssue]) {
-        comments.setLabel(`Comments for ${data.currentIssue} [quit width q]`);
+        comments.setLabel(
+          `Comments for ${data.currentIssue} [quit width q] [e to add a comment] `,
+        );
         comments.setContent(data.comments[data.currentIssue].join(""));
       }
     }
   }
   screen.render();
-}, 600);
+}, 300);
