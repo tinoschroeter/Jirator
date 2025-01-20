@@ -314,6 +314,7 @@ const searchInList = (query) => {
   if (!search.length) {
     return infoHandler("Search yielded no results");
   }
+  data.issues.length = search.length;
   feedList.setItems(search);
   infoHandler(
     `I have found ${search.length} results,\n ${levenshtein.length} through error correction.\n Press {bold}r{/bold} to reload the list.`,
@@ -639,6 +640,7 @@ feedList.setItems(["Loading..."]);
 const loadAndDisplayIssues = async () => {
   try {
     loadingHandler(true);
+    data.issues.length = 0;
     const response = await jira.searchIssues(data.JIRA);
     //logger(JSON.stringify(response));
     const items = response.issues.map((item) => {
