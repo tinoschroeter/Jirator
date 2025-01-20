@@ -58,7 +58,7 @@ git pull
     "project = <PROJECT> AND assignee = <ASSIGNEE> AND status != Closed AND labels = quickwin",
   ],
   [
-    "Watched issues",
+    "Watched Issues",
     "watcher = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   ],
   [
