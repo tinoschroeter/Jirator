@@ -9,6 +9,7 @@ Jira TUI application, will maybe not work with Jira Cloud.
 - Basic vim motions
 - Fuzzy Search and error correction (Levenshtein Distance)
 - Assign issues to your account
+- Transission Jira status like Start Progress, Close, Resolve...
 - Open and write comments
 - Show watchers and watch issues
 - Open your own list of JQL searches
