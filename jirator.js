@@ -19,8 +19,10 @@ const data = {
     : [["Set the JIRA_JQL_LIST in your environment variable", ""]],
   JIRA: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   helpOpen: false,
+  statusOpen: false,
   issues: [],
   comments: {},
+  stati: {},
   commentsCount: {},
   writeCommentOpen: false,
 };
@@ -167,6 +169,68 @@ class JiraAPI {
     }
 
     return await response.json();
+  }
+
+  async getTransitions(issue) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    const response = await fetch(`${this.baseUrl}/issue/${issue}/transitions`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  async putTransitions(issue, transitionId, message) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
+    const body = {
+      transition: {
+        id: transitionId.toString(),
+      },
+    };
+
+    if (message) {
+      body.update = {
+        comment: [
+          {
+            add: {
+              body: "Ticket was successfully implemented",
+            },
+          },
+        ],
+      };
+    }
+
+    const response = await fetch(`${this.baseUrl}/issue/${issue}/transitions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.text();
   }
 
   async writeComments(issue, comments) {
@@ -534,6 +598,7 @@ const helpBox = blessed.box({
   {bold}f{/bold}                {green-fg}Open JQL Filter list{/green-fg}
   {bold}o{/bold}                {green-fg}Open the current issue in the browser{/green-fg}
   {bold}r{/bold}                {green-fg}Reload the current list.{/green-fg}
+  {bold}s{/bold}                {green-fg}Transission Jira status{/green-fg}
   {bold}w{/bold}                {green-fg}Add me as watcher{/green-fg}
   {bold}?{/bold}                {green-fg}Help{/green-fg}
 `,
@@ -549,6 +614,35 @@ const filter = blessed.list({
   height: "20%",
   keys: true,
   label: " JQL search and filter list ",
+  border: { type: "line" },
+  padding: { left: 1 },
+  noCellBorders: true,
+  invertSelected: false,
+  scrollbar: {
+    ch: " ",
+    style: { bg: "blue" },
+    track: {
+      style: { bg: "grey" },
+    },
+  },
+  style: {
+    item: { hover: { bg: "blue" } },
+    selected: { fg: "black", bg: "blue", bold: true },
+    label: {
+      fg: "lightgrey",
+    },
+  },
+  hidden: true,
+});
+
+const status = blessed.list({
+  parent: screen,
+  top: "center",
+  left: "center",
+  width: "40%",
+  height: "20%",
+  keys: true,
+  label: " Change Status ",
   border: { type: "line" },
   padding: { left: 1 },
   noCellBorders: true,
@@ -631,6 +725,7 @@ const loading = blessed.box({
 screen.append(comments);
 screen.append(description);
 screen.append(feedList);
+screen.append(status);
 screen.append(search);
 screen.append(writeComments);
 screen.append(assignToMe);
@@ -683,13 +778,55 @@ const loadAndDisplayFilter = () => {
   filter.setItems(list);
 };
 
+const closeCommentBox = () => {
+  if (data.commentsOpen) {
+    data.commentsOpen = false;
+    comments.hide();
+    screen.render();
+  }
+};
+
 loadAndDisplayFilter();
 loadAndDisplayIssues();
 
 screen.key("/", () => {
+  search.setLabel(` Search [ESC for exit] `);
+  closeCommentBox();
   search.input("", (_err, value) => {
     searchInList(value || "...");
   });
+});
+
+screen.key("s", () => {
+  closeCommentBox();
+  data.statusOpen = true;
+  const allowedStati = [
+    "Close",
+    "In Progress",
+    "Queued",
+    "Resolve",
+    "Start Progress",
+    "Waiting",
+  ];
+
+  delete data.stati[data.currentIssue];
+  if (data.currentIssue.length) {
+    data.stati[data.currentIssue] = [];
+    jira.getTransitions(data.currentIssue).then((result) => {
+      result.transitions.forEach((item) => {
+        if (allowedStati.includes(item.name)) {
+          data.stati[data.currentIssue].push({
+            id: item.id,
+            name: item.name,
+          });
+        }
+
+        status.setItems(data.stati[data.currentIssue].map((item) => item.name));
+        status.show();
+        screen.render();
+      });
+    });
+  }
 });
 
 let firstGPressed = false;
@@ -725,7 +862,9 @@ screen.program.on("keypress", (_ch, key) => {
 });
 
 screen.key(["j"], (_ch, _key) => {
-  if (data.filterOpen) {
+  if (data.statusOpen) {
+    status.down();
+  } else if (data.filterOpen) {
     filter.down();
   } else {
     feedList.down();
@@ -734,7 +873,9 @@ screen.key(["j"], (_ch, _key) => {
 });
 
 screen.key(["k"], (_ch, _key) => {
-  if (data.filterOpen) {
+  if (data.statusOpen) {
+    status.up();
+  } else if (data.filterOpen) {
     filter.up();
   } else {
     feedList.up();
@@ -774,15 +915,10 @@ screen.key("?", () => {
 });
 
 screen.key("e", () => {
-  if (data.commentsOpen) {
-    data.commentsOpen = false;
-    comments.hide();
-    screen.render();
-  }
-
+  closeCommentBox();
   writeComments.setLabel(` ${data.currentIssue} [ESC for exit]`);
   writeComments.input(
-    "\n  {bold}{blue-fg}Type a comment and hit enter{/bold}{/blue-fg}",
+    "\n  {bold}{blue-fg}Write a comment and hit enter{/bold}{/blue-fg}",
     (_err, value) => {
       if (!value) return;
       infoHandler(value);
@@ -801,6 +937,7 @@ screen.key("e", () => {
 });
 
 screen.key("a", () => {
+  closeCommentBox();
   assignToMe.setLabel(` Assign to me [ESC for exit] `);
   assignToMe.input(
     `\n  {bold}{blue-fg}Type yes and hit enter to assign {red-fg}${data.currentIssue}{/red-fg} to you{/blue-fg}{/bold}\n`,
@@ -818,6 +955,7 @@ screen.key("a", () => {
 });
 
 screen.key("w", () => {
+  closeCommentBox();
   watch.setLabel(` Watch Issue [ESC for exit] `);
   jira
     .getWatcher(data.currentIssue)
@@ -857,10 +995,12 @@ screen.key(["c"], (_ch, _key) => {
 });
 
 screen.key(["r"], (_ch, _key) => {
+  closeCommentBox();
   loadAndDisplayIssues();
 });
 
 screen.key(["f"], (_ch, _key) => {
+  closeCommentBox();
   screen.append(filter);
   data.filterOpen = true;
   filter.show();
@@ -868,20 +1008,43 @@ screen.key(["f"], (_ch, _key) => {
 
 screen.key(["enter"], (_ch, _key) => {
   const selectedIndexFilter = filter.selected;
-  if (selectedIndexFilter !== undefined && data.filterOpen) {
-    data.JIRA = data.filter[selectedIndexFilter][1];
-    data.filterOpen = false;
-    infoHandler("Loading ..." + data.JIRA);
-    data.issues.length = 0;
-    loadAndDisplayIssues();
-    feedList.setLabel(
-      " " + data.filter[selectedIndexFilter][0] + " Press ? for help ",
-    );
-    filter.hide();
+  if (selectedIndexFilter !== undefined) {
+    if (data.filterOpen) {
+      data.JIRA = data.filter[selectedIndexFilter][1];
+      data.filterOpen = false;
+      infoHandler("Loading ..." + data.JIRA);
+      data.issues.length = 0;
+      loadAndDisplayIssues();
+      feedList.setLabel(
+        " " + data.filter[selectedIndexFilter][0] + " Press ? for help ",
+      );
+      filter.hide();
+    }
+    if (data.statusOpen) {
+      data.statusOpen = false;
+
+      status.hide();
+      const { id, name } = data.stati[data.currentIssue][status.selected];
+
+      let message = false;
+      if (["Close", "Resolve"].includes(name)) {
+        message = true;
+      }
+      jira.putTransitions(data.currentIssue, id, message).then((result) => {
+        infoHandler(`${data.currentIssue} was set to ${name}`);
+        loadAndDisplayIssues();
+      });
+    }
   }
 });
 
 screen.key(["escape", "q"], (_ch, _key) => {
+  if (data.statusOpen) {
+    data.statusOpen = false;
+    status.hide();
+    screen.render();
+    return;
+  }
   if (data.filterOpen) {
     data.filterOpen = false;
     filter.hide();
