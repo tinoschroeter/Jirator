@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 
-//TODO:
-//- add resolve issue witch message
-
 const fs = require("fs");
 const blessed = require("blessed");
 const open = require("open");
@@ -613,7 +610,7 @@ const filter = blessed.list({
   width: "40%",
   height: "20%",
   keys: true,
-  label: " JQL search and filter list ",
+  label: " JQL filter list [ESC for exit] ",
   border: { type: "line" },
   padding: { left: 1 },
   noCellBorders: true,
@@ -642,7 +639,7 @@ const status = blessed.list({
   width: "40%",
   height: "20%",
   keys: true,
-  label: " Change Status ",
+  label: " Change Status [ESC for exit] ",
   border: { type: "line" },
   padding: { left: 1 },
   noCellBorders: true,
@@ -812,20 +809,25 @@ screen.key("s", () => {
   delete data.stati[data.currentIssue];
   if (data.currentIssue.length) {
     data.stati[data.currentIssue] = [];
-    jira.getTransitions(data.currentIssue).then((result) => {
-      result.transitions.forEach((item) => {
-        if (allowedStati.includes(item.name)) {
-          data.stati[data.currentIssue].push({
-            id: item.id,
-            name: item.name,
-          });
-        }
+    jira
+      .getTransitions(data.currentIssue)
+      .then((result) => {
+        result.transitions.forEach((item) => {
+          if (allowedStati.includes(item.name)) {
+            data.stati[data.currentIssue].push({
+              id: item.id,
+              name: item.name,
+            });
+          }
 
-        status.setItems(data.stati[data.currentIssue].map((item) => item.name));
-        status.show();
-        screen.render();
-      });
-    });
+          status.setItems(
+            data.stati[data.currentIssue].map((item) => item.name),
+          );
+          status.show();
+          screen.render();
+        });
+      })
+      .catch((err) => errorHandling(err.message));
   }
 });
 
@@ -885,18 +887,18 @@ screen.key(["k"], (_ch, _key) => {
 
 screen.key(["S-j"], (_ch, _key) => {
   if (data.commentsOpen) {
-    comments.scroll(20);
+    comments.scroll(10);
   } else {
-    description.scroll(20);
+    description.scroll(10);
   }
   screen.render();
 });
 
 screen.key(["S-k"], (_ch, _key) => {
   if (data.commentsOpen) {
-    comments.scroll(-20);
+    comments.scroll(-10);
   } else {
-    description.scroll(-20);
+    description.scroll(-10);
   }
   screen.render();
 });
@@ -1030,10 +1032,13 @@ screen.key(["enter"], (_ch, _key) => {
       if (["Close", "Resolve"].includes(name)) {
         message = true;
       }
-      jira.putTransitions(data.currentIssue, id, message).then((result) => {
-        infoHandler(`${data.currentIssue} was set to ${name}`);
-        loadAndDisplayIssues();
-      });
+      jira
+        .putTransitions(data.currentIssue, id, message)
+        .then((result) => {
+          infoHandler(`${data.currentIssue} was set to ${name}`);
+          loadAndDisplayIssues();
+        })
+        .catch((err) => errorHandling(err.message));
     }
   }
 });
