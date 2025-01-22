@@ -1,6 +1,6 @@
 {
   "name": "jirator",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Jira in your Terminal",
   "main": "jirator.js",
   "bin": "jirator.js",

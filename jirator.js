@@ -579,7 +579,7 @@ const helpBox = blessed.box({
   top: "center",
   left: "center",
   height: "shrink",
-  width: "50%",
+  width: "62%",
   label: " Help ",
   border: { type: "line" },
   content: `  {bold}q|Esc{/bold}            {green-fg}Close Jirator{/green-fg}
@@ -598,7 +598,7 @@ const helpBox = blessed.box({
   {bold}r{/bold}                {green-fg}Reload the current list.{/green-fg}
   {bold}s{/bold}                {green-fg}Transission Jira status{/green-fg}
   {bold}w{/bold}                {green-fg}Add me as watcher{/green-fg}
-  {bold}y{/bold}                {green-fg}Copy content from Description or commands to the clipboard{/green-fg}
+  {bold}y{/bold}                {green-fg}Copy content from description or commands to the clipboard{/green-fg}
   {bold}?{/bold}                {green-fg}Help{/green-fg}
 `,
   tags: true,
