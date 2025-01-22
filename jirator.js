@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const blessed = require("blessed");
-const open = require("open");
+import fs from "fs";
+import blessed from "blessed";
+import clipboardy from "clipboardy";
+import open from "open";
 const FETCH_TIMEOUT = 15_000; // 15 Seconds Timeout
 
 const data = {
@@ -456,7 +457,7 @@ const comments = blessed.box({
   parent: screen,
   top: "center",
   left: "center",
-  width: "90%",
+  width: "93%",
   height: "90%",
   tags: true,
   label: " comments ",
@@ -597,6 +598,7 @@ const helpBox = blessed.box({
   {bold}r{/bold}                {green-fg}Reload the current list.{/green-fg}
   {bold}s{/bold}                {green-fg}Transission Jira status{/green-fg}
   {bold}w{/bold}                {green-fg}Add me as watcher{/green-fg}
+  {bold}y{/bold}                {green-fg}Copy content from Description or commands to the clipboard{/green-fg}
   {bold}?{/bold}                {green-fg}Help{/green-fg}
 `,
   tags: true,
@@ -607,8 +609,8 @@ const filter = blessed.list({
   parent: screen,
   top: "center",
   left: "center",
-  width: "40%",
-  height: "20%",
+  width: "30%",
+  height: "30%",
   keys: true,
   label: " JQL filter list [ESC for exit] ",
   border: { type: "line" },
@@ -767,6 +769,7 @@ const loadAndDisplayIssues = async () => {
       message = "API request timed out ";
     }
     errorHandling(message + error.message);
+    loadingHandler(false);
   }
 };
 
@@ -820,9 +823,12 @@ screen.key("s", () => {
             });
           }
 
-          status.setItems(
-            data.stati[data.currentIssue].map((item) => item.name),
-          );
+          const list = data.stati[data.currentIssue].map((item) => item.name);
+
+          if (!list.length) {
+            list.push("The status cannot be set.");
+          }
+          status.setItems(list);
           status.show();
           screen.render();
         });
@@ -993,6 +999,7 @@ screen.key("w", () => {
 screen.key(["c"], (_ch, _key) => {
   screen.append(comments);
   data.commentsOpen = true;
+  comments.setScroll(0);
   comments.show();
 });
 
@@ -1026,6 +1033,8 @@ screen.key(["enter"], (_ch, _key) => {
       data.statusOpen = false;
 
       status.hide();
+      if (!data.stati[data.currentIssue][status.selected]) return;
+
       const { id, name } = data.stati[data.currentIssue][status.selected];
 
       let message = false;
@@ -1041,6 +1050,17 @@ screen.key(["enter"], (_ch, _key) => {
         .catch((err) => errorHandling(err.message));
     }
   }
+});
+
+screen.key(["y"], () => {
+  let box = "Description";
+  if (data.commentsOpen) {
+    clipboardy.writeSync(comments.getContent());
+    box = "Comments";
+  } else {
+    clipboardy.writeSync(description.getContent());
+  }
+  infoHandler(`${box} box was copied to the clipboard`);
 });
 
 screen.key(["escape", "q"], (_ch, _key) => {
@@ -1158,7 +1178,7 @@ setInterval(() => {
             });
             data.commentsCount[data.currentIssue] = commentList.length;
             commentList.unshift(
-              `{bold}{green-fg}> ${data.issues[selectedIndexMain]?.summary}{/green-fg}{/bold}\n\n`,
+              `{bold}{blue-fg}${data.issues[selectedIndexMain]?.summary}{/blue-fg}{/bold}\n\n`,
             );
             if (commentList.length === 1)
               commentList.push("{bold}No comments...{/bold}");

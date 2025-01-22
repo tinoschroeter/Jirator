@@ -1,9 +1,10 @@
 {
   "name": "jirator",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Jira in your Terminal",
   "main": "jirator.js",
   "bin": "jirator.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "blessed": "^0.1.81",
-    "open": "^8.4.0"
+    "clipboardy": "^4.0.0",
+    "open": "^10.1.0"
   }
 }
