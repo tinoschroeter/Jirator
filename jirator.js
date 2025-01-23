@@ -411,12 +411,13 @@ const feedList = blessed.list({
   },
   style: {
     item: { hover: { bg: "blue" } },
-    selected: { fg: "black", bg: "blue", bold: true },
+    selected: { fg: "black", bg: "grey", bold: true },
     label: {
       fg: "lightgrey",
     },
   },
   focusable: true,
+  tags: true,
 });
 
 const description = blessed.box({
@@ -612,7 +613,7 @@ const filter = blessed.list({
   width: "30%",
   height: "30%",
   keys: true,
-  label: " JQL filter list [ESC for exit] ",
+  label: " JQL filter list ",
   border: { type: "line" },
   padding: { left: 1 },
   noCellBorders: true,
@@ -641,7 +642,7 @@ const status = blessed.list({
   width: "40%",
   height: "20%",
   keys: true,
-  label: " Change Status [ESC for exit] ",
+  label: " Change Status ",
   border: { type: "line" },
   padding: { left: 1 },
   noCellBorders: true,
@@ -730,7 +731,7 @@ screen.append(writeComments);
 screen.append(assignToMe);
 screen.append(watch);
 
-feedList.setItems(["Loading..."]);
+feedList.setItems(["{blue-fg}Loading...{/blue-fg}"]);
 
 const loadAndDisplayIssues = async () => {
   try {
@@ -757,7 +758,7 @@ const loadAndDisplayIssues = async () => {
           ? item.fields.customfield_12898
           : "Reason was not given",
       });
-      return `[${item.key}] ${item.fields.summary}`;
+      return `${item.fields.status.name === "In Progress" ? "{red-fg}" : "{green-fg}"}[${item.key}] {blue-fg}${item.fields.summary}{blue-fg}`;
     });
 
     feedList.setItems(items);
@@ -790,7 +791,7 @@ loadAndDisplayFilter();
 loadAndDisplayIssues();
 
 screen.key("/", () => {
-  search.setLabel(` Search [ESC for exit] `);
+  search.setLabel(` Search `);
   closeCommentBox();
   search.input("", (_err, value) => {
     searchInList(value || "...");
@@ -964,7 +965,7 @@ screen.key("a", () => {
 
 screen.key("w", () => {
   closeCommentBox();
-  watch.setLabel(` Watch Issue [ESC for exit] `);
+  watch.setLabel(` Watch Issue `);
   jira
     .getWatcher(data.currentIssue)
     .then((result) => {
@@ -976,7 +977,7 @@ screen.key("w", () => {
       watch.input(
         `\n  {bold}{blue-fg}Type yes and hit enter to ${watching} {red-fg}${data.currentIssue}{/red-fg}{bold}{blue-fg}\n\n\n\n\n\n${watchers}`,
         (_err, value) => {
-          if (!value) return;
+          if (!value || value !== "yes") return;
           if (result.isWatching) {
             jira.unwatchIssue(data.currentIssue).then((result) => {
               infoHandler(` You unwatching ${data.currentIssue} now `);
@@ -1051,14 +1052,15 @@ screen.key(["enter"], (_ch, _key) => {
     }
   }
 });
+const removeAnsiSequences = (input) => input.replace(/\u001b\[.*?m/g, "");
 
 screen.key(["y"], () => {
   let box = "Description";
   if (data.commentsOpen) {
-    clipboardy.writeSync(comments.getContent());
+    clipboardy.writeSync(removeAnsiSequences(comments.getContent()));
     box = "Comments";
   } else {
-    clipboardy.writeSync(description.getContent());
+    clipboardy.writeSync(removeAnsiSequences(description.getContent()));
   }
   infoHandler(`${box} box was copied to the clipboard`);
 });
@@ -1158,11 +1160,11 @@ setInterval(() => {
     );
     const commentsCount = data.commentsCount[data.currentIssue] || 0;
     description.setLabel(
-      " Description (" +
+      " Description ({green-fg}" +
         data.issues.length +
-        " Issues) (" +
+        " Issues{/green-fg}) ({green-fg}" +
         commentsCount +
-        " Comments) ",
+        " Comments{/green-fg}) ",
     );
     if (data.currentIssue !== "") {
       if (!data.comments[data.currentIssue]) {
