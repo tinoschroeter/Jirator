@@ -18,6 +18,7 @@ const data = {
   JIRA: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   helpOpen: false,
   statusOpen: false,
+  loading: 0,
   issues: [],
   comments: {},
   stati: {},
@@ -304,13 +305,21 @@ const errorHandling = (message) => {
 const infoHandler = (message) => {
   screen.append(infoBox);
   infoBox.show();
-  infoBox.setContent(" " + message + " ");
+  infoBox.setContent(" {bold}{green-fg}" + message + "{/bold}{/green-fg} ");
   screen.render();
 
   setTimeout(() => {
     infoBox.hide();
     screen.render();
   }, 4_000);
+};
+
+const updateLoadingAnimation = () => {
+  const space = " ".repeat(data.loading);
+  loading.setContent(`${space} L O A D I N G ${space}`);
+
+  data.loading < 5 ? data.loading++ : (data.loading = 0);
+  screen.render();
 };
 
 const loadingHandler = (status) => {
@@ -1026,7 +1035,9 @@ screen.key(["enter"], (_ch, _key) => {
       data.issues.length = 0;
       loadAndDisplayIssues();
       feedList.setLabel(
-        " " + data.filter[selectedIndexFilter][0] + " Press ? for help ",
+        " {bold}" +
+          data.filter[selectedIndexFilter][0] +
+          "{/bold} Press ? for help ",
       );
       filter.hide();
     }
@@ -1197,5 +1208,6 @@ setInterval(() => {
       }
     }
   }
+  updateLoadingAnimation();
   screen.render();
 }, 300);
