@@ -850,6 +850,7 @@ screen.key("s", () => {
 let firstGPressed = false;
 
 screen.key(["g"], (_ch, _key) => {
+  if (data.writeCommentOpen) return;
   if (!firstGPressed) {
     firstGPressed = true;
     setTimeout(() => {
@@ -870,6 +871,7 @@ screen.key(["g"], (_ch, _key) => {
 
 screen.program.on("keypress", (_ch, key) => {
   if (key.name === "g" && key.shift) {
+    if (data.writeCommentOpen) return;
     if (data.filterOpen) {
       filter.select(feedList.items.length - 1);
     } else {
@@ -934,6 +936,7 @@ screen.key("?", () => {
 
 screen.key("e", () => {
   closeCommentBox();
+  data.writeCommentOpen = true;
   writeComments.setLabel(` ${data.currentIssue} [ESC for exit]`);
   writeComments.input(
     "\n  {bold}{blue-fg}Write a comment and hit enter{/bold}{/blue-fg}",
@@ -949,6 +952,7 @@ screen.key("e", () => {
         .finally(() => {
           delete data.comments[data.currentIssue];
           delete data.commentsCount[data.currentIssue];
+          data.writeCommentOpen = false;
         });
     },
   );
