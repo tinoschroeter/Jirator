@@ -4,6 +4,17 @@ import fs from "fs";
 import blessed from "blessed";
 import clipboardy from "clipboardy";
 import open from "open";
+import { readFile } from "fs/promises";
+let config = [];
+try {
+  config = JSON.parse(
+    await readFile(process.env.HOME + "/.config/jirator/config.json", "utf8"),
+  );
+} catch (error) {
+  console.error("Error reading config file:", error.message);
+  process.exit(1);
+}
+
 const FETCH_TIMEOUT = 15_000; // 15 Seconds Timeout
 
 const data = {
@@ -12,9 +23,7 @@ const data = {
   commentsOpen: false,
   currentIssue: "",
   filterOpen: false,
-  filter: process.env.JIRA_JQL_LIST
-    ? JSON.parse(process.env.JIRA_JQL_LIST)
-    : [["Set the JIRA_JQL_LIST in your environment variable", ""]],
+  filter: config,
   JIRA: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   helpOpen: false,
   statusOpen: false,

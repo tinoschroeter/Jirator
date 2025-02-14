@@ -26,7 +26,17 @@ Go to your profile <https://jira.example.com/secure/ViewProfile.jspa> and genera
 ```bash
 export JIRA_HOST="jira.example.com"
 export JIRA_API_TOKEN="123"
-export JIRA_JQL_LIST='[["Issues CurrentUser","assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC"]]'
+```
+
+### config
+
+```json
+[
+  [
+    "Issues CurrentUser",
+    "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC"
+  ]
+]
 ```
 
 ```bash
