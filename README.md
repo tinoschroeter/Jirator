@@ -30,6 +30,8 @@ export JIRA_API_TOKEN="123"
 
 ### config
 
+~/.config/jirator/config.json
+
 ```json
 [
   [
