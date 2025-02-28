@@ -15,7 +15,7 @@ try {
   process.exit(1);
 }
 
-const FETCH_TIMEOUT = 15_000; // 15 Seconds Timeout
+const FETCH_TIMEOUT = 25_000; // 25 Seconds Timeout
 
 const data = {
   assignToMeOpen: false,
