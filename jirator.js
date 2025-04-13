@@ -760,18 +760,18 @@ const loadAndDisplayIssues = async () => {
     const items = response.issues.map((item) => {
       data.issues.push({
         key: item.key,
-        headline: item.fields.summary,
-        labels: item.fields.labels,
-        assignee: item.fields.assignee.name,
-        reporter: item.fields.reporter.name,
-        lastUpdate: item.fields.updated,
-        duedate: item.fields.duedate,
-        created: item.fields.created,
-        watchCount: item.fields.watches.watchCount,
-        status: item.fields.status.name,
-        severity: item.fields.priority.name,
-        summary: item.fields.summary,
-        description: item.fields.description,
+        headline: item.fields?.summary,
+        labels: item.fields?.labels,
+        assignee: item.fields?.assignee?.name,
+        reporter: item.fields?.reporter?.name,
+        lastUpdate: item.fields?.updated,
+        duedate: item.fields?.duedate,
+        created: item.fields?.created,
+        watchCount: item.fields?.watches?.watchCount,
+        status: item.fields?.status?.name,
+        severity: item.fields?.priority?.name,
+        summary: item.fields?.summary,
+        description: item.fields?.description,
         reasonForPriority: item.fields.customfield_12898
           ? item.fields.customfield_12898
           : "Reason was not given",
@@ -1160,27 +1160,27 @@ setInterval(() => {
   if (selectedIndexMain !== undefined && data.issues[selectedIndexMain]) {
     data.currentIssue = data.issues[selectedIndexMain].key;
     const max = Math.max(
-      data.issues[selectedIndexMain].key.length,
-      data.issues[selectedIndexMain].assignee.length,
-      data.issues[selectedIndexMain].reporter.length,
-      data.issues[selectedIndexMain].status.length,
-      data.issues[selectedIndexMain].severity.length,
+      data.issues[selectedIndexMain]?.key?.length,
+      data.issues[selectedIndexMain]?.assignee?.length,
+      data.issues[selectedIndexMain]?.reporter?.length,
+      data.issues[selectedIndexMain]?.status?.length,
+      data.issues[selectedIndexMain]?.severity?.length,
     );
 
     description.setContent(
       `{bold}Issue:{/bold}{blue-fg}      ${data.issues[selectedIndexMain].key}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].key.length, max)}{bold}Watchers:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].watchCount}{/blue-fg}\n` +
+        `          ${spaces(data.issues[selectedIndexMain].key?.length, max)}{bold}Watchers:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].watchCount}{/blue-fg}\n` +
         `{bold}Assignee:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].assignee}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].assignee.length, max)}{bold}Labels:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].labels.toString()}{/blue-fg}\n` +
-        `{bold}Reporter:{/bold}{blue-fg}   ${data.issues[selectedIndexMain].reporter}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].reporter.length, max)}{bold}DueDate:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].duedate)}{/green-fg}\n` +
-        `{bold}Status:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].status}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].status.length, max)}{bold}Created:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].created)}{/green-fg}\n` +
-        `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain].severity)}{/blue-fg}` +
-        `          ${spaces(data.issues[selectedIndexMain].severity.length, max)}{bold}LastUpdate:{/bold}{green-fg} ${formatDate(data.issues[selectedIndexMain].lastUpdate)}{/green-fg}\n\n` +
-        `{bold}Reason for Priority:{/bold}\n{yellow-fg}${data.issues[selectedIndexMain].reasonForPriority}{/yellow-fg}\n` +
+        `          ${spaces(data.issues[selectedIndexMain].assignee?.length, max)}{bold}Labels:{/bold}{blue-fg}     ${data.issues[selectedIndexMain].labels.toString()}{/blue-fg}\n` +
+        `{bold}Reporter:{/bold}{blue-fg}   ${data.issues[selectedIndexMain]?.reporter}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].reporter?.length, max)}{bold}DueDate:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].duedate)}{/green-fg}\n` +
+        `{bold}Status:{/bold}{blue-fg}     ${data.issues[selectedIndexMain]?.status}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].status?.length, max)}{bold}Created:{/bold}{green-fg}    ${formatDate(data.issues[selectedIndexMain].created)}{/green-fg}\n` +
+        `{bold}Priority:{/bold}{blue-fg}   ${severity(data.issues[selectedIndexMain]?.severity)}{/blue-fg}` +
+        `          ${spaces(data.issues[selectedIndexMain].severity?.length, max)}{bold}LastUpdate:{/bold}{green-fg} ${formatDate(data.issues[selectedIndexMain].lastUpdate)}{/green-fg}\n\n` +
+        `{bold}Reason for Priority:{/bold}\n{yellow-fg}${data.issues[selectedIndexMain]?.reasonForPriority}{/yellow-fg}\n` +
         `${line(description.width)}\n` +
-        `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain].description || "No description available"}{/blue-fg}`,
+        `{bold}Description:{/bold}{blue-fg}\n\n${data.issues[selectedIndexMain]?.description || "No description available"}{/blue-fg}`,
     );
     const commentsCount = data.commentsCount[data.currentIssue] || 0;
     description.setLabel(
