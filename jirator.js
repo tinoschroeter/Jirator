@@ -1195,7 +1195,7 @@ setInterval(() => {
         jira
           .getComments(data.currentIssue)
           .then((value) => {
-            const commentList = value.comments.map((item) => {
+            const commentList = value.comments.reverse().map((item) => {
               return (
                 `{bold}From:{/bold} {blue-fg}${item.author.displayName}{/blue-fg}\n` +
                 `{green-fg}${item.body}{/green-fg}\n` +
